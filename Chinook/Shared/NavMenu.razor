@@ -1,0 +1,96 @@
+﻿
+@using Chinook.ClientModels;
+@using Chinook.Services.Contracts;
+@using System.Security.Claims;
+@using Chinook.Services;
+@using Microsoft.AspNetCore.WebUtilities;
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Chinook</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="oi oi-home" aria-hidden="true"></span>Home
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="playlist/1">
+                <i class="bi bi-music-note-list me-3" style="font-size: 1.25em"></i>My favorite tracks
+            </NavLink>
+        </div>
+        @if (@playlistNameChangeService.Value != null)
+        {
+            @foreach (var list in  @playlistNameChangeService.Value)
+            {
+                        <div class="nav-item px-3">
+                                            <NavLink class="nav-link" href="@(() => Navigation(list.PlaylistId))">
+                            <i class="bi bi-music-note-list me-3" style="font-size: 1.25em"></i>@list.Name
+                        </NavLink>
+                    </div>
+            }
+        }
+        else{
+            @foreach (var list in Playlist)
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="@($"playlist/{list.PlaylistId}")">
+                    <i class="bi bi-music-note-list me-3" style="font-size: 1.25em"></i>@list.Name
+                </NavLink>
+            </div>
+        }
+        }
+    </nav>
+</div>
+
+@code {
+    private List<Chinook.ClientModels.Playlist> Playlist { get; set; }
+    //[Parameter] public string Playlistname { get; set; }
+    [Inject] IPlaylistService playlistService { get; set; }
+    [CascadingParameter] private Task<AuthenticationState> authenticationState { get; set; }
+    @inject PlaylistNameChangeService playlistNameChangeService;
+    @inject NavigationManager navigationManager;
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    
+    private string CurrentUserId;
+    private string InfoMessage;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUserId = await GetUserId();
+        playlistNameChangeService.OnStateChange += () => StateHasChanged();
+        await InvokeAsync(StateHasChanged);
+
+        Playlist = playlistService.GetUserCreatedPlayList(CurrentUserId);
+    }
+
+    private async Task<string> GetUserId()
+    {
+        var user = (await authenticationState).User;
+        var userId = user.FindFirst(u => u.Type.Contains(ClaimTypes.NameIdentifier))?.Value;
+        return userId;
+    }
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+    private void Navigation(long playlistId)
+    {
+        navigationManager.NavigateTo($"/playlist/{playlistId}");
+      
+    }
+    //protected override void OnParametersSet()
+    //{
+    //    //the param will be set now
+    //    Playlistname = Playlistname;
+    //}
+}
